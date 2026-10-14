@@ -849,3 +849,36 @@ assert_single_error_line() {
   [ "$(output_value vault)" = "$VAULT" ]
   [ "$(output_value notes)" = "$VAULT/bom-notes/github.com/acme/widget" ]
 }
+
+@test "--no-create prints the paths and creates nothing" {
+  create_checkout github.com/acme/widget
+
+  cd "$GHQ_ROOT/github.com/acme/widget"
+  run --separate-stderr "$PLANS_RESOLVE" --no-create
+
+  [ "$status" -eq 0 ]
+  [ "$(output_value repo)" = "$GHQ_ROOT/github.com/acme/widget" ]
+  [ "$(output_value notes)" = "$NOTES_ROOT/github.com/acme/widget" ]
+  [ ! -e "$NOTES_ROOT" ]
+}
+
+@test "--no-create keeps an existing index.md" {
+  create_checkout github.com/acme/widget
+  resolve_in "$GHQ_ROOT/github.com/acme/widget"
+  printf 'my words\n' >"$NOTES_ROOT/github.com/acme/widget/index.md"
+
+  run --separate-stderr "$PLANS_RESOLVE" --no-create
+
+  [ "$status" -eq 0 ]
+  [ "$(cat "$NOTES_ROOT/github.com/acme/widget/index.md")" = "my words" ]
+}
+
+@test "rejects an unknown argument" {
+  create_checkout github.com/acme/widget
+
+  cd "$GHQ_ROOT/github.com/acme/widget"
+  run --separate-stderr "$PLANS_RESOLVE" --bogus
+
+  [ "$status" -ne 0 ]
+  [[ $stderr == *"--bogus"* ]]
+}

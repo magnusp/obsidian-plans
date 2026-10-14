@@ -15,6 +15,7 @@ worktrees_root=""
 worktrees_root_real=""
 relative_repo=""
 worktree_path=""
+create_notes=true
 
 fail() {
   echo "plans-resolve: $*" >&2
@@ -266,7 +267,18 @@ print_result() {
   [[ -z $worktree_path ]] || echo "worktree=$worktree_path"
 }
 
+parse_arguments() {
+  local argument
+  for argument in "$@"; do
+    case $argument in
+      --no-create) create_notes=false ;;
+      *) fail "unknown argument $argument. Usage: plans-resolve [--no-create]" ;;
+    esac
+  done
+}
+
 main() {
+  parse_arguments "$@"
   load_config
   resolve_ghq_root
   resolve_location "$(pwd -P)"
@@ -276,7 +288,7 @@ main() {
   local notes="$notes_root/$relative_repo"
   [[ -d $repo ]] || warn "checkout $repo does not exist"
 
-  create_notes_folder "$notes"
+  ! $create_notes || create_notes_folder "$notes"
   print_result "$repo" "$notes"
 }
 

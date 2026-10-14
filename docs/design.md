@@ -66,7 +66,8 @@ The message tells you to run `install --vault <dir>`.
 
 ## Repository layout
 
-- `src/bin/`: the scripts `plans-resolve`, `plans-worktree`, and `plans-open`.
+- `src/bin/`: the scripts `plans-resolve`, `plans-worktree`, `plans-open`, and `plans-list`.
+- `src/plugin/`: the Claude Code plugin that shows inbox items and plans to you.
 - `src/skills/obsidian-inbox/SKILL.md` and `src/skills/obsidian-plans/SKILL.md`.
 - `src/test/`: the `bats` tests.
 - `src/install`: the install script.
@@ -100,6 +101,7 @@ It has two short sentences that say where inbox items and plans live.
 
 ## plans-resolve
 
+Usage: `plans-resolve [--no-create]`.
 Run from a checkout, a worktree, or a directory inside a notes folder.
 
 Output on stdout, one `key=value` per line:
@@ -121,6 +123,8 @@ Behavior:
    If the checkout does not exist, print the expected path and a warning on stderr.
    Exit 0.
 5. Create the notes folder, `.plans-vault`, `inbox/`, `plans/`, and `index.md` if missing.
+   With `--no-create`, create nothing.
+   The output stays the same.
 6. Never create the vault.
    Never write inside `.obsidian/`.
    Never run any git command in the vault.
@@ -151,6 +155,33 @@ Usage: `plans-worktree <branch> [<start-point>]` and `plans-worktree --remove <b
    If a plan with `branch: <branch>` exists in the notes folder, print a warning on stderr.
    Skip a plan that has `marked-for-deletion`.
    Never delete the plan or the notes folder.
+
+## plans-list
+
+Usage: `plans-list`.
+Run it from a checkout, a worktree, or a directory inside a notes folder.
+
+1. Resolve the notes folder with `plans-resolve --no-create`.
+   If it fails, `plans-list` fails with the same message on stderr and a non-zero exit.
+2. Create nothing and write nothing.
+   If the notes folder, `inbox/`, or `plans/` is missing, that part has no entries.
+   Exit 0.
+3. An open note is a file `*.md` directly in `inbox/` or `plans/`.
+   Its front matter has no `marked-for-deletion` field.
+   Front matter is the block between a first line `---` and the next line `---`.
+   A file without front matter is open.
+   A file that has a first line `---` and no closing `---` has no front matter.
+4. Print to stdout, one entry per line, with tab characters between the fields.
+   Print the inbox entries first and then the plan entries.
+   Sort each group by file name.
+   - `inbox<TAB><name>`: `<name>` is the file name without `.md`.
+   - `plan<TAB><name><TAB><branch>`: `<branch>` is the value of the exact front matter line `branch: <branch>`, trimmed.
+     It is empty if the plan has no such line.
+5. Print nothing if there are no open notes.
+6. Never run a git command.
+   Never change anything in the vault.
+
+Calling it twice gives the same result.
 
 ## plans-open
 
@@ -193,6 +224,38 @@ Usage: `install [--vault <dir> [--subfolder <name>]]`.
 5. Never run a git command.
    Never create or change anything in the vault.
 6. Calling it twice gives the same result.
+
+## Plugin
+
+The plugin lives in `src/plugin/`.
+It is a Claude Code plugin with a mod.
+A mod is code that runs inside Claude Code and draws in its interface.
+The plugin shows you the open inbox items and plans.
+Nothing that it shows enters the model context.
+
+- The plugin never returns text from a command.
+  Claude reads a command's text, so the plugin returns an empty result.
+- The plugin calls `plans-list` by name, in the working directory of the session.
+- The plugin writes no note, runs no git command, and changes nothing in the vault.
+- At session start, the plugin runs `plans-list`.
+  If it exits 0 and prints at least one line, the plugin shows one toast: `inbox <n> · plans <m>`.
+  If it fails or prints nothing, the plugin shows nothing.
+- The plugin adds the command `/plans`.
+  The command runs `plans-list` and opens a pane with the id `plans` and the title `Plans`.
+  Esc closes the pane.
+  - The pane has the heading `Inbox (<n>)`, then one row per inbox item with its name.
+  - The pane has the heading `Plans (<m>)`, then one row per plan.
+    A row is the name, followed by `[<branch>]` if the plan has a branch.
+  - A group with no entries shows the row `None.`.
+  - If `plans-list` fails, the pane shows its stderr message.
+  - If `plans-list` is not found, the pane tells you to run `src/install --vault <dir>` in the obsidian-plans repository.
+- The plugin needs Claude Code 2.1.287 or later.
+  It draws in the terminal and in the Desktop app.
+  Elsewhere, it draws nothing.
+- You load the plugin with `claude --plugin-dir <path to src/plugin>`, or install it from a marketplace.
+  `install` does not load the plugin.
+- The `bats` tests do not cover the plugin.
+  `claude plugin test` runs its tests.
 
 ## Notes that the user edits
 

@@ -1,0 +1,6 @@
+{
+  "name": "obsidian-plans",
+  "version": "0.1.0",
+  "description": "Shows the open inbox items and plans of the current repository without loading them into the model context",
+  "author": { "name": "Magnus Persson" }
+}

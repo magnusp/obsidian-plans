@@ -1,0 +1,63 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly SCRIPT_DIR="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+
+notes=""
+
+fail() {
+  echo "plans-list: $*" >&2
+  exit 1
+}
+
+resolve_notes() {
+  local resolved
+  resolved=$("$SCRIPT_DIR/plans-resolve" --no-create) || exit 1
+  notes=$(printf '%s\n' "$resolved" | sed -n 's/^notes=//p')
+  [[ -n $notes ]] || fail "plans-resolve did not print a notes folder"
+}
+
+read_front_matter() {
+  awk '
+    NR == 1 && $0 != "---" { exit }
+    NR == 1 { next }
+    $0 == "---" { closed = 1; exit }
+    /^marked-for-deletion:/ { marked = 1 }
+    !found && /^branch: / {
+      branch = substr($0, 9)
+      gsub(/^[ \t]+|[ \t]+$/, "", branch)
+      found = 1
+    }
+    END {
+      if (!closed) printf "open\t\n"
+      else if (marked) print "marked"
+      else printf "open\t%s\n", branch
+    }
+  ' "$1"
+}
+
+list_group() {
+  local kind=$1 folder="$notes/$2" file name front_matter
+  [[ -d $folder ]] || return 0
+  for file in "$folder"/*.md; do
+    [[ -f $file ]] || continue
+    name=$(basename "$file" .md)
+    front_matter=$(read_front_matter "$file")
+    [[ $front_matter != marked ]] || continue
+    if [[ $kind == plan ]]; then
+      printf 'plan\t%s\t%s\n' "$name" "${front_matter#open$'\t'}"
+    else
+      printf 'inbox\t%s\n' "$name"
+    fi
+  done
+}
+
+main() {
+  export LC_ALL=C
+  shopt -s nullglob
+  resolve_notes
+  list_group inbox inbox
+  list_group plan plans
+}
+
+main "$@"
