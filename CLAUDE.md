@@ -4,7 +4,8 @@ Bash scripts and two Claude skills that keep per-repository plans and inbox item
 
 ## Contract first
 
-`site-docs/src/content/docs/design.md` is the single source of truth for behavior.
+`site-docs/src/content/docs/reference/` is the single source of truth for behavior.
+Each page in that folder is part of the contract.
 Edit the contract before you change a script or a skill.
 Report a gap or a conflict in the contract instead of choosing a behavior silently.
 

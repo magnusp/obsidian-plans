@@ -27,7 +27,7 @@ The tools never commit or push.
 You version the vault yourself, or you do not.
 The tools never change anything in the `.obsidian/` folder of your vault.
 
-For the full contract, read [the design contract](site-docs/src/content/docs/design.md).
+For the full contract, read [the concepts page of the reference](site-docs/src/content/docs/reference/concepts.md).
 
 ## Install
 
