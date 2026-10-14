@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly CONFIG_NAME="obsidian.json"
+readonly UNKNOWN_VAULT_MESSAGE="Open the vault once in Obsidian, then run plans-open again."
+
+opener=""
+notes=""
+vault=""
+registered_vault=""
+
+fail() {
+  echo "plans-open: $*" >&2
+  exit 1
+}
+
+require_tools() {
+  command -v jq >/dev/null || fail "jq is not installed. Install jq and run plans-open again."
+  opener=${PLANS_OPEN_COMMAND:-xdg-open}
+  command -v "$opener" >/dev/null ||
+    fail "opener command $opener was not found. Set PLANS_OPEN_COMMAND to a command that opens a URL."
+}
+
+resolve_paths() {
+  local resolved
+  resolved=$("$SCRIPT_DIR/plans-resolve") || exit 1
+  notes=$(printf '%s\n' "$resolved" | sed -n 's/^notes=//p')
+  vault=$(printf '%s\n' "$resolved" | sed -n 's/^vault=//p')
+  [[ -n $notes ]] || fail "plans-resolve did not print a notes folder"
+  [[ -n $vault ]] || fail "plans-resolve did not print a vault"
+}
+
+url_encode() {
+  local text=$1 encoded="" character index
+  local LC_ALL=C
+  for ((index = 0; index < ${#text}; index++)); do
+    character=${text:index:1}
+    case $character in
+      [A-Za-z0-9._~-]) encoded+=$character ;;
+      *) encoded+=$(printf '%%%02X' "'$character") ;;
+    esac
+  done
+  echo "$encoded"
+}
+
+canonical_dir() {
+  (cd "$1" 2>/dev/null && pwd -P)
+}
+
+obsidian_config_file() {
+  local config_dir=${OBSIDIAN_CONFIG_DIR:-}
+  if [[ -z $config_dir ]]; then
+    [[ -n ${HOME:-} ]] ||
+      fail "HOME is not set and OBSIDIAN_CONFIG_DIR is not set. Set one of them so plans-open can find $CONFIG_NAME."
+    config_dir="$HOME/.config/obsidian"
+  fi
+  echo "$config_dir/$CONFIG_NAME"
+}
+
+registered_vault_paths() {
+  local config_file=$1
+  jq -r '(.vaults // {})[] | .path | select(type == "string")' "$config_file" ||
+    fail "cannot read $config_file"
+}
+
+find_registered_vault() {
+  local config_file=$1 vault_real registered registered_real
+  vault_real=$(canonical_dir "$vault") || fail "vault $vault is not an existing directory"
+  local paths
+  paths=$(registered_vault_paths "$config_file")
+  while IFS= read -r registered; do
+    [[ -n $registered ]] || continue
+    registered_real=$(canonical_dir "$registered") || continue
+    if [[ $registered_real == "$vault_real" ]]; then
+      registered_vault=$registered
+      return 0
+    fi
+  done <<<"$paths"
+  fail "$UNKNOWN_VAULT_MESSAGE"
+}
+
+require_known_vault() {
+  local config_file
+  config_file=$(obsidian_config_file)
+  [[ -f $config_file ]] || fail "$UNKNOWN_VAULT_MESSAGE"
+  find_registered_vault "$config_file"
+}
+
+index_path() {
+  local registered=${registered_vault%/}
+  echo "$registered/${notes#"$vault"/}/index.md"
+}
+
+open_index() {
+  "$opener" "obsidian://open?path=$(url_encode "$(index_path)")" >/dev/null ||
+    fail "opener command $opener failed"
+}
+
+main() {
+  require_tools
+  resolve_paths
+  require_known_vault
+  open_index
+}
+
+main "$@"

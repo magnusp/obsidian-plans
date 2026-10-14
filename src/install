@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+fail() {
+  echo "install: $*" >&2
+  exit 1
+}
+
+[ -n "${HOME:-}" ] ||
+  fail "HOME is not set: set HOME so install can link into ~/.local/bin and ~/.claude/skills"
+
+script_path="$(readlink -f "${BASH_SOURCE[0]}")"
+source_root="$(dirname "$(dirname "$script_path")")"
+config_dir="${OBSIDIAN_PLANS_CONFIG_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/obsidian-plans}"
+config_file="$config_dir/config"
+bin_target="$HOME/.local/bin"
+skills_target="$HOME/.claude/skills"
+
+default_subfolder="obsidian-plans"
+vault_given=false
+vault_argument=""
+subfolder_given=false
+subfolder_argument="$default_subfolder"
+
+usage() {
+  echo "usage: install [--vault <dir> [--subfolder <name>]]" >&2
+}
+
+trim() {
+  local value="$1"
+  value="${value#"${value%%[![:blank:]]*}"}"
+  value="${value%"${value##*[![:blank:]]}"}"
+  printf '%s' "$value"
+}
+
+parse_arguments() {
+  while [ "$#" -gt 0 ]; do
+    case "$1" in
+      --vault)
+        [ "$#" -ge 2 ] || { usage; fail "--vault needs a directory"; }
+        vault_given=true
+        vault_argument="$(trim "$2")"
+        shift 2
+        ;;
+      --subfolder)
+        [ "$#" -ge 2 ] || { usage; fail "--subfolder needs a name"; }
+        subfolder_given=true
+        subfolder_argument="$(trim "$2")"
+        shift 2
+        ;;
+      *)
+        usage
+        fail "unknown argument: $1"
+        ;;
+    esac
+  done
+}
+
+expand_home() {
+  case "$1" in
+    "~") echo "$HOME" ;;
+    "~/"*) echo "$HOME/${1#"~/"}" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+validate_vault_path() {
+  local vault="$1"
+  [ -n "$vault" ] || fail "vault is empty"
+  case "$vault" in
+    /*) ;;
+    *) fail "vault $vault must be an absolute path" ;;
+  esac
+  [ -d "$vault" ] || fail "vault $vault is not an existing directory"
+  [ -d "$vault/.obsidian" ] ||
+    fail "vault $vault has no .obsidian folder: open the folder in Obsidian once"
+}
+
+validate_subfolder() {
+  local subfolder="$1"
+  [ -n "$subfolder" ] || fail "subfolder is empty"
+  case "$subfolder" in
+    */*|.|..) fail "subfolder $subfolder must be a single folder name with no / and not . or .." ;;
+  esac
+}
+
+write_config() {
+  local vault subfolder
+  vault="$(expand_home "$vault_argument")"
+  validate_vault_path "$vault"
+  subfolder="$subfolder_argument"
+  validate_subfolder "$subfolder"
+  mkdir -p "$config_dir"
+  printf 'vault=%s\nsubfolder=%s\n' "$vault" "$subfolder" >"$config_file"
+  echo "wrote config: $config_file"
+}
+
+ensure_config() {
+  if [ "$vault_given" = true ]; then
+    write_config
+    return 0
+  fi
+  [ "$subfolder_given" = false ] ||
+    fail "--subfolder needs --vault: a subfolder alone cannot update the config"
+  [ -e "$config_file" ] ||
+    fail "no config file at $config_file: run install --vault <dir>"
+  echo "kept existing config: $config_file"
+}
+
+link_entry() {
+  local source="$1" target_dir="$2"
+  local target="$target_dir/$(basename "$source")"
+  if [ -e "$target" ] && [ ! -L "$target" ]; then
+    echo "skipped: $target exists and is not a symlink"
+    return 0
+  fi
+  mkdir -p "$target_dir"
+  ln -sfn "$source" "$target"
+  echo "linked: $target -> $source"
+}
+
+link_entries() {
+  local source_dir="$1" target_dir="$2" kind="$3" entry
+  [ -d "$source_dir" ] || return 0
+  for entry in "$source_dir"/*; do
+    case "$kind" in
+      file) [ -f "$entry" ] || continue ;;
+      directory) [ -d "$entry" ] || continue ;;
+    esac
+    link_entry "$entry" "$target_dir"
+  done
+}
+
+parse_arguments "$@"
+ensure_config
+link_entries "$source_root/src/bin" "$bin_target" file
+link_entries "$source_root/src/skills" "$skills_target" directory

@@ -1,0 +1,283 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly NOTES_MARKER=".plans-vault"
+readonly OBSIDIAN_DIR=".obsidian"
+readonly DEFAULT_SUBFOLDER="obsidian-plans"
+readonly BYTE_ORDER_MARK=$'\xEF\xBB\xBF'
+
+vault=""
+vault_real=""
+notes_root=""
+notes_root_real=""
+ghq_root=""
+worktrees_root=""
+worktrees_root_real=""
+relative_repo=""
+worktree_path=""
+
+fail() {
+  echo "plans-resolve: $*" >&2
+  exit 1
+}
+
+warn() {
+  echo "plans-resolve: warning: $*" >&2
+}
+
+canonical_dir() {
+  (cd "$1" 2>/dev/null && pwd -P)
+}
+
+real_or_default() {
+  canonical_dir "$1" || echo "$2"
+}
+
+is_within() {
+  local path=$1 root=$2
+  [[ $path == "$root" || $path == "$root"/* ]]
+}
+
+is_within_either() {
+  local path=$1 root=$2 other_root=$3
+  is_within "$path" "$root" || is_within "$path" "$other_root"
+}
+
+relative_below() {
+  local path=$1 root=$2 other_root=$3
+  is_within "$path" "$root" || root=$other_root
+  local remainder=${path#"$root"}
+  echo "${remainder#/}"
+}
+
+trim() {
+  local value=$1
+  value=${value#"${value%%[![:space:]]*}"}
+  value=${value%"${value##*[![:space:]]}"}
+  printf '%s' "$value"
+}
+
+unquote() {
+  local value=$1
+  case $value in
+    \"?*\" | \'?*\') value=${value:1:${#value}-2} ;;
+  esac
+  printf '%s' "$value"
+}
+
+fail_config() {
+  fail "$1. Run install --vault <dir>"
+}
+
+require_home() {
+  [[ -n ${HOME:-} ]] || fail_config "$1"
+}
+
+expand_tilde() {
+  local value=$1
+  if [[ $value == "~" || $value == "~/"* ]]; then
+    require_home "cannot expand the ~ in $value because HOME is not set"
+    value="$HOME${value#\~}"
+  fi
+  printf '%s' "$value"
+}
+
+config_file() {
+  local config_dir=${OBSIDIAN_PLANS_CONFIG_DIR:-}
+  if [[ -z $config_dir ]]; then
+    if [[ -n ${XDG_CONFIG_HOME:-} ]]; then
+      config_dir="$XDG_CONFIG_HOME/obsidian-plans"
+    else
+      require_home "HOME is not set and neither OBSIDIAN_PLANS_CONFIG_DIR nor XDG_CONFIG_HOME is set"
+      config_dir="$HOME/.config/obsidian-plans"
+    fi
+  fi
+  echo "$config_dir/config"
+}
+
+config_value() {
+  expand_tilde "$(unquote "$(trim "$1")")"
+}
+
+parse_config() {
+  local file=$1 line key first_line=true
+  while IFS= read -r line || [[ -n $line ]]; do
+    if $first_line; then
+      line=${line#"$BYTE_ORDER_MARK"}
+      first_line=false
+    fi
+    line=$(trim "$line")
+    [[ -z $line || $line == \#* || $line != *=* ]] && continue
+    key=$(trim "${line%%=*}")
+    case $key in
+      vault) configured_vault=$(config_value "${line#*=}") ;;
+      subfolder) configured_subfolder=$(config_value "${line#*=}") ;;
+    esac
+  done <"$file"
+}
+
+load_config() {
+  local file configured_vault="" configured_subfolder=$DEFAULT_SUBFOLDER
+  file=$(config_file)
+  [[ -f $file ]] || fail_config "config file $file is missing"
+  parse_config "$file"
+
+  [[ -n $configured_vault ]] || fail_config "vault is missing in $file"
+  [[ $configured_vault == /* ]] ||
+    fail_config "vault $configured_vault in $file must be an absolute path"
+  vault_real=$(canonical_dir "$configured_vault") ||
+    fail_config "vault $configured_vault is not an existing directory"
+  [[ -d $vault_real/$OBSIDIAN_DIR ]] ||
+    fail_config "vault $configured_vault has no $OBSIDIAN_DIR folder"
+  [[ -n $configured_subfolder && $configured_subfolder != */* &&
+    $configured_subfolder != . && $configured_subfolder != .. ]] ||
+    fail_config "subfolder \"$configured_subfolder\" in $file must be a single folder name"
+  vault=$configured_vault
+  while [[ $vault == */ && $vault != / ]]; do
+    vault=${vault%/}
+  done
+  notes_root="$vault/$configured_subfolder"
+  notes_root_real=$(real_or_default "$notes_root" "$vault_real/$configured_subfolder")
+}
+
+resolve_ghq_root() {
+  local configured="${GHQ_ROOT:-}"
+  if [[ -z $configured ]]; then
+    command -v ghq >/dev/null || fail "GHQ_ROOT is not set and ghq is not installed"
+    configured=$(ghq root)
+  fi
+  ghq_root=$(canonical_dir "$configured") ||
+    fail "ghq root $configured does not exist"
+  worktrees_root="$ghq_root/worktrees"
+  worktrees_root_real=$(real_or_default "$worktrees_root" "$worktrees_root")
+}
+
+main_checkout_from_git() {
+  local common_dir
+  common_dir=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) ||
+    fail "$PWD is not inside a git repository"
+  common_dir=$(canonical_dir "$common_dir") ||
+    fail "git directory $common_dir does not exist"
+  [[ $(basename "$common_dir") == .git ]] ||
+    fail "$common_dir is not a .git directory: a git submodule or a bare repository is not supported"
+  dirname "$common_dir"
+}
+
+worktree_toplevel() {
+  local toplevel
+  toplevel=$(git rev-parse --show-toplevel 2>/dev/null) ||
+    fail "$PWD is not inside a git work tree"
+  canonical_dir "$toplevel" ||
+    fail "work tree $toplevel does not exist"
+}
+
+configured_worktree_path() {
+  local toplevel=$1 relative
+  if ! is_within_either "$toplevel" "$worktrees_root" "$worktrees_root_real"; then
+    echo "$toplevel"
+    return 0
+  fi
+  relative=$(relative_below "$toplevel" "$worktrees_root" "$worktrees_root_real")
+  echo "$worktrees_root${relative:+/$relative}"
+}
+
+relative_to_ghq_root() {
+  local checkout=$1
+  if is_within_either "$checkout" "$worktrees_root" "$worktrees_root_real" ||
+    ! is_within "$checkout" "$ghq_root"; then
+    fail "checkout $checkout is outside the ghq root $ghq_root"
+  fi
+  echo "${checkout#"$ghq_root"/}"
+}
+
+find_notes_dir() {
+  local dir=$1
+  while [[ $dir != "$notes_root" && $dir != "$notes_root_real" && $dir != / ]]; do
+    if [[ -f $dir/$NOTES_MARKER ]]; then
+      echo "$dir"
+      return 0
+    fi
+    dir=$(dirname "$dir")
+  done
+  return 1
+}
+
+resolve_from_notes() {
+  local notes_dir
+  notes_dir=$(find_notes_dir "$1") ||
+    fail "no $NOTES_MARKER found between $1 and the notes root $notes_root"
+  relative_repo=$(relative_below "$notes_dir" "$notes_root" "$notes_root_real")
+}
+
+resolve_from_checkout() {
+  local main_checkout
+  main_checkout=$(main_checkout_from_git)
+  relative_repo=$(relative_to_ghq_root "$main_checkout")
+}
+
+resolve_from_worktree() {
+  resolve_from_checkout
+  worktree_path=$(configured_worktree_path "$(worktree_toplevel)")
+}
+
+resolve_location() {
+  local here=$1
+  if is_within_either "$here" "$notes_root" "$notes_root_real"; then
+    resolve_from_notes "$here"
+  elif is_within_either "$here" "$vault" "$vault_real"; then
+    fail "$here is inside the vault $vault but outside the notes root $notes_root"
+  elif is_within_either "$here" "$worktrees_root" "$worktrees_root_real"; then
+    resolve_from_worktree
+  elif is_within "$here" "$ghq_root"; then
+    resolve_from_checkout
+  else
+    fail "$here is outside the ghq root $ghq_root, the worktrees root $worktrees_root, and the notes root $notes_root"
+  fi
+}
+
+require_minimum_depth() {
+  [[ $relative_repo == */* ]] ||
+    fail "repository path $relative_repo must be at least two levels deep, such as <host>/<repo>"
+}
+
+write_index_if_missing() {
+  local notes=$1 index="$1/index.md"
+  [[ -e $index ]] && return 0
+  {
+    echo "# $relative_repo"
+    echo
+    echo 'Inbox items for this repository live in `inbox/`.'
+    echo 'Plans for this repository live in `plans/`.'
+  } >"$index"
+}
+
+create_notes_folder() {
+  local notes=$1
+  mkdir -p "$notes/inbox" "$notes/plans"
+  touch "$notes/$NOTES_MARKER"
+  write_index_if_missing "$notes"
+}
+
+print_result() {
+  local repo=$1 notes=$2
+  echo "repo=$repo"
+  echo "vault=$vault"
+  echo "notes=$notes"
+  [[ -z $worktree_path ]] || echo "worktree=$worktree_path"
+}
+
+main() {
+  load_config
+  resolve_ghq_root
+  resolve_location "$(pwd -P)"
+  require_minimum_depth
+
+  local repo="$ghq_root/$relative_repo"
+  local notes="$notes_root/$relative_repo"
+  [[ -d $repo ]] || warn "checkout $repo does not exist"
+
+  create_notes_folder "$notes"
+  print_result "$repo" "$notes"
+}
+
+main "$@"

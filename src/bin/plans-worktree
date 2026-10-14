@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly PLANS_RESOLVE="$(dirname "${BASH_SOURCE[0]}")/plans-resolve"
+readonly FALLBACK_BRANCH="main"
+readonly REMOTE="origin"
+
+repo=""
+notes=""
+worktrees_dir=""
+
+fail() {
+  echo "plans-worktree: $*" >&2
+  exit 1
+}
+
+warn() {
+  echo "plans-worktree: warning: $*" >&2
+}
+
+usage() {
+  echo "usage: plans-worktree <branch> [<start-point>]" >&2
+  echo "       plans-worktree --remove <branch>" >&2
+  exit 2
+}
+
+canonical_dir() {
+  (cd "$1" 2>/dev/null && pwd -P)
+}
+
+resolved_value() {
+  local key=$1 resolved=$2
+  sed -n "s/^$key=//p" <<<"$resolved"
+}
+
+ghq_root() {
+  local configured="${GHQ_ROOT:-}"
+  if [[ -z $configured ]]; then
+    command -v ghq >/dev/null || fail "GHQ_ROOT is not set and ghq is not installed"
+    configured=$(ghq root)
+  fi
+  canonical_dir "$configured" || fail "ghq root $configured does not exist"
+}
+
+is_within() {
+  local path=$1 root=$2
+  [[ $path == "$root" || $path == "$root"/* ]]
+}
+
+require_not_inside_notes() {
+  local here notes_real
+  here=$(pwd -P)
+  notes_real=$(canonical_dir "$notes") || notes_real=$notes
+  if is_within "$here" "$notes" || is_within "$here" "$notes_real"; then
+    fail "$here is inside the notes root. Run from a checkout or worktree under the ghq root"
+  fi
+}
+
+resolve_context() {
+  local resolved
+  resolved=$("$PLANS_RESOLVE")
+  repo=$(resolved_value repo "$resolved")
+  notes=$(resolved_value notes "$resolved")
+  require_not_inside_notes
+  [[ -d $repo ]] || fail "checkout $repo does not exist"
+  local root
+  root=$(ghq_root)
+  worktrees_dir="$root/worktrees/${repo#"$root"/}"
+}
+
+directory_name() {
+  echo "${1//\//-}"
+}
+
+branch_exists() {
+  git -C "$repo" show-ref --verify --quiet "refs/heads/$1"
+}
+
+checked_out_branch() {
+  git -C "$1" symbolic-ref --quiet --short HEAD 2>/dev/null || true
+}
+
+remote_branch_exists() {
+  git -C "$repo" show-ref --verify --quiet "refs/remotes/$REMOTE/$1"
+}
+
+default_start_point() {
+  if git -C "$repo" rev-parse --verify --quiet "$REMOTE/HEAD" >/dev/null; then
+    echo "$REMOTE/HEAD"
+  elif git -C "$repo" rev-parse --verify --quiet "refs/heads/$FALLBACK_BRANCH" >/dev/null; then
+    echo "$FALLBACK_BRANCH"
+  else
+    git -C "$repo" rev-parse HEAD
+  fi
+}
+
+first_missing_ancestor() {
+  local dir=$1
+  while [[ ! -e $(dirname "$dir") ]]; do
+    dir=$(dirname "$dir")
+  done
+  echo "$dir"
+}
+
+remove_created_directories() {
+  local top=$1 dir=$2
+  while [[ $dir == "$top"/* || $dir == "$top" ]]; do
+    rmdir "$dir" 2>/dev/null || return 0
+    dir=$(dirname "$dir")
+  done
+}
+
+git_worktree_add() {
+  local top
+  top=$(first_missing_ancestor "$worktrees_dir")
+  mkdir -p "$worktrees_dir"
+  if ! git -C "$repo" worktree add -q "$@" >&2; then
+    remove_created_directories "$top" "$worktrees_dir"
+    return 1
+  fi
+}
+
+require_valid_branch() {
+  git -C "$repo" check-ref-format --branch "$1" >/dev/null 2>&1 ||
+    fail "$1 is not a valid branch name"
+}
+
+plans_for_branch() {
+  local branch=$1 plan
+  for plan in "$notes"/plans/*.md; do
+    [[ -f $plan ]] || continue
+    BRANCH_LINE="branch: $branch" awk '
+      NR == 1 && $0 != "---" { exit 1 }
+      NR > 1 && $0 == "---" { exit }
+      $0 == ENVIRON["BRANCH_LINE"] { found = 1 }
+      index($0, "marked-for-deletion:") == 1 { marked = 1 }
+      END { exit !(found && !marked) }
+    ' "$plan" && echo "$plan"
+  done
+}
+
+add_worktree() {
+  local branch=$1 start_point=$2
+  local worktree="$worktrees_dir/$(directory_name "$branch")"
+
+  if [[ -e $worktree ]]; then
+    local occupant
+    occupant=$(checked_out_branch "$worktree")
+    [[ $occupant == "$branch" ]] ||
+      fail "$worktree already exists for another branch (${occupant:-detached HEAD})"
+    echo "$worktree"
+    return 0
+  fi
+
+  if branch_exists "$branch"; then
+    git_worktree_add "$worktree" "$branch"
+  elif remote_branch_exists "$branch"; then
+    git_worktree_add -b "$branch" --track "$worktree" "$REMOTE/$branch"
+  else
+    git_worktree_add -b "$branch" --no-track "$worktree" "${start_point:-$(default_start_point)}"
+  fi
+  echo "$worktree"
+}
+
+remove_worktree() {
+  local branch=$1
+  local worktree="$worktrees_dir/$(directory_name "$branch")"
+
+  [[ -d $worktree && $(checked_out_branch "$worktree") == "$branch" ]] ||
+    fail "no worktree for branch $branch at $worktree"
+
+  git -C "$repo" worktree remove "$worktree" >&2
+
+  local plan
+  while IFS= read -r plan; do
+    warn "plan $plan references branch $branch and was kept"
+  done < <(plans_for_branch "$branch")
+}
+
+main() {
+  local remove=false
+  if [[ ${1:-} == "--remove" ]]; then
+    remove=true
+    shift
+  fi
+
+  if $remove; then
+    [[ $# -eq 1 ]] || usage
+  else
+    [[ $# -ge 1 && $# -le 2 ]] || usage
+  fi
+
+  local branch=$1 start_point=${2:-}
+  resolve_context
+  require_valid_branch "$branch"
+
+  if $remove; then
+    remove_worktree "$branch"
+  else
+    add_worktree "$branch" "$start_point"
+  fi
+}
+
+main "$@"
