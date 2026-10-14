@@ -13,6 +13,14 @@ install [--vault <dir> [--subfolder <name>]]
 
 An unknown argument, or an option without a value, fails with a usage message on stderr and a non-zero exit.
 
+## Order
+
+1. `install` handles the [config file](#config-file).
+2. `install` links the scripts.
+3. `install` links the skills.
+
+If step 1 fails, `install` creates no link.
+
 ## Config file
 
 - If you pass `--vault`, `install` validates it as the [config file](/reference/config-file/) rules say.

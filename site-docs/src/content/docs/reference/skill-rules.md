@@ -27,4 +27,4 @@ The skills are named `obsidian-inbox` and `obsidian-plans`.
 
 - The word "memory" does not appear in the skills.
   Claude has a built-in memory, and the vault is a separate concept.
-- The skills are written with the `writing-for-agents` skill.
+- Write the skills with the `writing-for-agents` skill.

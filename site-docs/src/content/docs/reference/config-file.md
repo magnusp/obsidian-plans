@@ -47,4 +47,4 @@ The message tells you to run `install --vault <dir>`.
 - `subfolder` is empty or contains `/`.
 - `subfolder` is `.` or `..`.
 - `HOME` is unset, and neither `OBSIDIAN_PLANS_CONFIG_DIR` nor `XDG_CONFIG_HOME` is set.
-- A value starts with `~`, and `HOME` is unset.
+- A value is `~` or starts with `~/`, and `HOME` is unset.

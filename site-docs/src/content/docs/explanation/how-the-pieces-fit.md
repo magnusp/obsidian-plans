@@ -29,14 +29,12 @@ It handles three starting points.
 
 - **A checkout or a worktree:** `git rev-parse --git-common-dir` gives the main checkout.
   The path of the main checkout below the ghq root is the relative path.
-- **A notes folder:** The scripts never run git in the vault.
-  So `plans-resolve` walks up to the `.plans-vault` marker instead.
+- **A notes folder:** `plans-resolve` walks up from the current directory to the nearest `.plans-vault` marker.
   The path of the marker folder below the notes root is the relative path.
 - **Anywhere else:** `plans-resolve` fails.
 
 `plans-worktree`, `plans-list`, and `plans-open` call `plans-resolve` from their own directory.
 The skills call it by name.
-So the config rules, the depth rule, and the path rules live in one script.
 
 ## Which tool does what
 
@@ -49,7 +47,7 @@ So the config rules, the depth rule, and the path rules live in one script.
 - **`plans-list`:** Prints the open inbox items and plans.
   It creates nothing.
 - **`plans-open`:** Opens the `index.md` of the notes folder in Obsidian.
-- **`obsidian-inbox` skill:** Writes and recalls inbox items, after you agree.
+- **`obsidian-inbox` skill:** Offers to write an inbox item, recalls items on demand, and marks an item when you promote or drop it.
 - **`obsidian-plans` skill:** Writes, recalls, and removes plans, after you agree.
 - **Plugin:** Runs `plans-list` and draws the result for you, outside the model context.
 

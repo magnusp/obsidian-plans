@@ -15,10 +15,10 @@ You run `plans-open` from a checkout, a worktree, or a directory inside a notes 
 
 ## Behavior
 
-1. `plans-open` checks that the opener exists.
+1. `plans-open` checks that `jq` exists.
+   It then checks that the opener exists.
    The opener is `${PLANS_OPEN_COMMAND:-xdg-open}`.
-   It checks that `jq` exists.
-   It fails with a message on stderr if either one is missing.
+   It fails with a message on stderr for the first one that is missing.
 2. It resolves the notes folder with `plans-resolve`.
 3. It reads `${OBSIDIAN_CONFIG_DIR:-$HOME/.config/obsidian}/obsidian.json`.
    It checks that a vault entry has a `path` equal to the vault path.
@@ -27,7 +27,7 @@ You run `plans-open` from a checkout, a worktree, or a directory inside a notes 
    If the file is missing or has no matching entry, it fails with this message on stderr.
 
    ```text
-   Open the vault once in Obsidian, then run plans-open again.
+   plans-open: Open the vault once in Obsidian, then run plans-open again.
    ```
 
 4. It runs the opener with `obsidian://open?path=<url-encoded absolute path of index.md>`.

@@ -38,10 +38,6 @@ The worktrees root is `<ghq root>/worktrees`.
 - The notes folder is `<notes root>/<host>/<owner>/.../<repo>`.
 - Each repository has one notes folder.
 
-## Note
-
-A note is an inbox item or a plan.
-
 ## Ghq root
 
 The ghq root is the output of `ghq root`.

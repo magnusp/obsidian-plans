@@ -903,3 +903,16 @@ assert_single_error_line() {
   [ "$status" -ne 0 ]
   [[ $stderr == *"--bogus"* ]]
 }
+
+@test "works with HOME unset when XDG_CONFIG_HOME is set" {
+  create_checkout github.com/acme/widget
+  mkdir -p "$(sandbox_dir)/xdg/obsidian-plans"
+  cp "$OBSIDIAN_PLANS_CONFIG_DIR/config" "$(sandbox_dir)/xdg/obsidian-plans/config"
+  unset HOME OBSIDIAN_PLANS_CONFIG_DIR
+  export XDG_CONFIG_HOME="$(sandbox_dir)/xdg"
+
+  resolve_in "$GHQ_ROOT/github.com/acme/widget"
+
+  [ "$status" -eq 0 ]
+  [ "$(output_value vault)" = "$VAULT" ]
+}

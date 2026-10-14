@@ -406,3 +406,16 @@ sandbox_dir() {
   [ "$status" -eq 0 ]
   [ "$(opener_calls)" -eq 1 ]
 }
+
+@test "names jq when both jq and the opener are missing" {
+  local bin="$BATS_TEST_TMPDIR/bin"
+  mkdir -p "$bin"
+  ln -s "$(command -v bash)" "$bin/bash"
+  ln -s "$(command -v dirname)" "$bin/dirname"
+  unset PLANS_OPEN_COMMAND
+
+  run --separate-stderr env PATH="$bin" "$PLANS_OPEN"
+
+  [ "$status" -ne 0 ]
+  [[ $stderr == *"jq is not installed"* ]]
+}
