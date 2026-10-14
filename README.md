@@ -44,8 +44,9 @@ You can run the script again at any time.
 
 ## Scripts
 
-- **`plans-resolve`:** Prints `repo=`, `vault=`, and `notes=`, and `worktree=` in a worktree.
+- **`plans-resolve [--no-create]`:** Prints `repo=`, `vault=`, and `notes=`, and `worktree=` in a worktree.
   It creates the notes folder if the folder is missing.
+  With `--no-create`, it creates nothing.
   Run it from a checkout, a worktree, or a directory inside a notes folder.
 - **`plans-worktree <branch> [<start-point>]`:** Creates a worktree and prints its path.
   Use `--remove <branch>` to remove a worktree.
@@ -53,6 +54,9 @@ You can run the script again at any time.
 - **`plans-open`:** Opens the `index.md` of the current repository in Obsidian.
   If Obsidian does not know the vault, open the vault once in Obsidian.
   Then run the script again.
+- **`plans-list`:** Prints the open inbox items and plans of the current repository.
+  It prints one tab-separated line for each note.
+  It creates nothing, so you can run it in any repository.
 
 ## Skills
 
@@ -61,6 +65,23 @@ You can run the script again at any time.
   The agent searches for duplicates first.
 - **`obsidian-plans`:** The agent saves a plan, loads a plan for the current branch, and removes a finished plan.
   The agent asks you before each of these actions.
+
+## Plugin
+
+The plugin shows you the open inbox items and plans in Claude Code.
+Nothing that it shows enters the model context.
+The plugin needs Claude Code 2.1.287 or later.
+
+1. Run `src/install --vault <path to your vault>`, so `plans-list` is on your `PATH`.
+2. Start Claude Code with `claude --plugin-dir <path to this repository>/src/plugin`.
+
+When a session starts, a short toast shows how many inbox items and plans are open.
+To see the list, run `/plans`.
+Press **Esc** to close the pane.
+
+The plugin runs with your permissions.
+It only runs `plans-list` and draws the result.
+The plugin draws in the terminal and in the Desktop app.
 
 ## Delete notes that agents removed
 
@@ -86,5 +107,6 @@ rg --files-with-matches --null --glob '*.md' '^marked-for-deletion:' ~/Documents
 ## Test
 
 Run `mise run test`.
+The task runs the `bats` tests for the scripts, and then `claude plugin test` for the plugin.
 The tests use temporary directories.
 They never touch your real `~/src`, `~/.config`, or vault.
