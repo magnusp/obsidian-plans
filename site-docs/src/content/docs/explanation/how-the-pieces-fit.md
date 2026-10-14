@@ -60,6 +60,6 @@ You edit anything you like in Obsidian.
 
 `plans-worktree` and `plans-open` call `plans-resolve` without `--no-create`, so they can also create a notes folder.
 `plans-list` uses `--no-create`.
-The README gives the reason for `plans-list`, which is that you can run it in any repository.
+`plans-list` creates nothing, so you can run it in any repository.
 The plugin runs `plans-list` at every session start.
 By inference, a listing that created folders would add a notes folder for each repository where you start Claude Code.

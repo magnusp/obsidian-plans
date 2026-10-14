@@ -1,112 +1,37 @@
 # obsidian-plans
 
-Tools and Claude skills that store plans and deferred discoveries in an Obsidian vault.
-The tools use one folder per repository inside a vault that you already have.
-The folder layout mirrors the layout that `ghq` uses for checkouts.
+obsidian-plans is a set of Bash scripts, two Claude skills, and a Claude Code plugin.
+They keep the plans and the inbox items of each repository in an Obsidian vault that you already have.
+The folders in the vault mirror the layout that `ghq` uses for checkouts.
+The tools never run a git command in your vault.
 
-## How it works
+## Get started
 
-- **Checkout:** `<ghq root>/<host>/<owner>/.../<repo>`.
-- **Worktree:** `<ghq root>/worktrees/<host>/<owner>/.../<repo>/<branch-with-dashes>`.
-- **Notes folder:** `<vault>/<subfolder>/<host>/<owner>/.../<repo>`.
-
-You choose the vault and the subfolder.
-The default subfolder is `obsidian-plans`.
-A config file stores both.
-The file is `~/.config/obsidian-plans/config`, or `$XDG_CONFIG_HOME/obsidian-plans/config` if you set that variable.
-
-Each notes folder has these items:
-
-- **`inbox/`:** Deferred discoveries that are not ready to plan.
-- **`plans/`:** Plans that live while the work is in progress.
-- **`index.md`:** A landing note for the repository.
-- **`.plans-vault`:** An empty marker file for the scripts.
-
-The tools never run git commands in your vault.
-The tools never commit or push.
-You version the vault yourself, or you do not.
-The tools never change anything in the `.obsidian/` folder of your vault.
-
-For the full contract, read [the concepts page of the reference](site-docs/src/content/docs/reference/concepts.md).
-
-## Install
-
-1. Run `mise install` to get `bats`.
-2. Run `src/install --vault <path to your vault>`.
-
-Use `--subfolder <name>` to change the subfolder.
-The install script writes the config file when you pass `--vault`.
-To change the vault, run the install script again with a new `--vault`.
-The script then symlinks the scripts into `~/.local/bin`.
-The script also symlinks the skills into `~/.claude/skills`.
-The script never overwrites an existing file that is not a symlink.
-You can run the script again at any time.
-
-## Scripts
-
-- **`plans-resolve [--no-create]`:** Prints `repo=`, `vault=`, and `notes=`, and `worktree=` in a worktree.
-  It creates the notes folder if the folder is missing.
-  With `--no-create`, it creates nothing.
-  Run it from a checkout, a worktree, or a directory inside a notes folder.
-- **`plans-worktree <branch> [<start-point>]`:** Creates a worktree and prints its path.
-  Use `--remove <branch>` to remove a worktree.
-  The script keeps the notes folder and any plan.
-- **`plans-open`:** Opens the `index.md` of the current repository in Obsidian.
-  If Obsidian does not know the vault, open the vault once in Obsidian.
-  Then run the script again.
-- **`plans-list`:** Prints the open inbox items and plans of the current repository.
-  It prints one tab-separated line for each note.
-  It creates nothing, so you can run it in any repository.
-
-## Skills
-
-- **`obsidian-inbox`:** The agent suggests an inbox item.
-  You accept it before the agent writes it.
-  The agent searches for duplicates first.
-- **`obsidian-plans`:** The agent saves a plan, loads a plan for the current branch, and removes a finished plan.
-  The agent asks you before each of these actions.
-
-## Plugin
-
-The plugin shows you the open inbox items and plans in Claude Code.
-Nothing that it shows enters the model context.
-The plugin needs Claude Code 2.1.287 or later.
-
-1. Run `src/install --vault <path to your vault>`, so `plans-list` is on your `PATH`.
-2. Start Claude Code with `claude --plugin-dir <path to this repository>/src/plugin`.
-
-When a session starts, a short toast shows how many inbox items and plans are open.
-To see the list, run `/plans`.
-Press **Esc** to close the pane.
-
-The plugin runs with your permissions.
-It only runs `plans-list` and draws the result.
-The plugin draws in the terminal and in the Desktop app.
-
-## Delete notes that agents removed
-
-An agent never deletes a note.
-The agent adds `marked-for-deletion: <date>` to the front matter of the note.
-Agents and scripts then treat the note as gone.
-To restore a note, ask the agent, or remove the field yourself.
-
-To list the marked notes, run this command.
-Replace the path with your notes root, which is `<vault>/<subfolder>`.
+Run these commands from the root of this repository.
 
 ```bash
-rg --files-with-matches --glob '*.md' '^marked-for-deletion:' ~/Documents/obsidian/Fortnox/obsidian-plans
+mise install
+src/install --vault <path to your vault>
 ```
 
-To delete the marked notes, run the same command with the output piped to `rm`.
-Check the list first, because the deletion is permanent.
+For the options and the result, read [Install the tools](site-docs/src/content/docs/how-to/install-the-tools.md).
 
-```bash
-rg --files-with-matches --null --glob '*.md' '^marked-for-deletion:' ~/Documents/obsidian/Fortnox/obsidian-plans | xargs -0 rm
-```
+## Documentation
 
-## Test
+The documentation is a Starlight site in `site-docs/`.
+These links go to the source pages.
 
-Run `mise run test`.
-The task runs the `bats` tests for the scripts, and then `claude plugin test` for the plugin.
-The tests use temporary directories.
-They never touch your real `~/src`, `~/.config`, or vault.
+- **How-to guides:**
+  - [Install the tools](site-docs/src/content/docs/how-to/install-the-tools.md)
+  - [Load the plugin](site-docs/src/content/docs/how-to/load-the-plugin.md)
+  - [Delete marked notes](site-docs/src/content/docs/how-to/delete-marked-notes.md)
+  - [Put the Obsidian folder under Git](site-docs/src/content/docs/how-to/put-the-obsidian-folder-under-git.md)
+  - [Run the tests](site-docs/src/content/docs/how-to/run-the-tests.md)
+- **Reference:**
+  - [Concepts](site-docs/src/content/docs/reference/concepts.md) defines the terms that the other pages use.
+  - [The reference folder](site-docs/src/content/docs/reference/) holds the contract for each script, skill, and the plugin.
+- **Explanation:**
+  - [How the pieces fit](site-docs/src/content/docs/explanation/how-the-pieces-fit.md)
+  - [Why notes are marked, not deleted](site-docs/src/content/docs/explanation/why-notes-are-marked-not-deleted.md)
+  - [Why your edits win](site-docs/src/content/docs/explanation/why-your-edits-win.md)
+  - [The Obsidian config folder and Git](site-docs/src/content/docs/explanation/obsidian-config-and-git.md)
