@@ -13,7 +13,11 @@ run = "bats src/test"
 run = "claude plugin test src/plugin"
 
 [tasks.test-site]
-run = "pnpm --dir site-docs install --frozen-lockfile && pnpm --dir site-docs build"
+run = """
+pnpm="$(mise where pnpm)/pnpm"
+"$pnpm" --dir site-docs install --frozen-lockfile
+"$pnpm" --dir site-docs build
+"""
 
 [tasks.test]
 depends = ["test-scripts", "test-plugin", "test-site"]
