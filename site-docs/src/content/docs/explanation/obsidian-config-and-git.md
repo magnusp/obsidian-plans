@@ -45,7 +45,7 @@ The page tells Git users to add both files to `.gitignore`.
 
 ## Why some files stay out of Git
 
-The files in this list hold device state, deleted files, or large caches.
+This list names each file to ignore and the reason.
 
 - **`workspace.json`:** Stores the open tabs and the layout.
   It changes on almost every action.
@@ -172,7 +172,7 @@ The Obsidian GitHub Copilot plugin before version 1.1.7 stored a GitHub token wi
 (Community, from the Tenable and OSV entries.)
 
 One forum user lost an OpenAI key.
-The user published a Hugo site from Git, and the key became public.
+The user published a Hugo site from Git, and the key was exposed.
 The user then added `.obsidian/plugins/*/data.json` to `.gitignore`.
 (Community.)
 

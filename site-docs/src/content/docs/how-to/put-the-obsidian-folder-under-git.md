@@ -15,7 +15,7 @@ The research is from 2026-10-14.
 
 ## Check plugin settings for secrets
 
-Many plugins store API keys and tokens in plain text in `data.json`.
+Many plugins store API keys and tokens in plain text in `data.json`. (Community)
 
 1. Before the first commit, search every `data.json` for keys, tokens, and passwords.
 2. If a secret was ever committed, rotate it.
