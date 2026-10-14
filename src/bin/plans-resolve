@@ -61,7 +61,7 @@ trim() {
 unquote() {
   local value=$1
   case $value in
-    \"?*\" | \'?*\') value=${value:1:${#value}-2} ;;
+    \"*\" | \'*\') value=${value:1:${#value}-2} ;;
   esac
   printf '%s' "$value"
 }

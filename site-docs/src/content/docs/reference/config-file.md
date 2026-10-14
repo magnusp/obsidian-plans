@@ -20,6 +20,7 @@ sidebar:
 - Scripts trim spaces around the key and the value.
 - If a key appears more than once, the last value wins.
 - Scripts remove one matching pair of single or double quotes around a value before `~` expands.
+- A pair of quotes with nothing between them gives an empty value.
 - A leading `~` in a value expands to `$HOME` when the `~` is the whole value or a `/` follows it.
 - A `~` that a name follows stays as written.
 - Scripts ignore a byte-order mark at the start of the file.

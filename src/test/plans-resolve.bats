@@ -916,3 +916,44 @@ assert_single_error_line() {
   [ "$status" -eq 0 ]
   [ "$(output_value vault)" = "$VAULT" ]
 }
+
+@test "treats a pair of double quotes with nothing between them as an empty subfolder" {
+  create_checkout github.com/acme/widget
+  write_config "vault=$VAULT" 'subfolder=""'
+
+  resolve_in "$GHQ_ROOT/github.com/acme/widget"
+
+  assert_config_failure
+  [[ "$stderr" == *"subfolder"* ]]
+  [ ! -e "$VAULT/\"\"" ]
+}
+
+@test "treats a pair of single quotes with nothing between them as an empty subfolder" {
+  create_checkout github.com/acme/widget
+  write_config "vault=$VAULT" "subfolder=''"
+
+  resolve_in "$GHQ_ROOT/github.com/acme/widget"
+
+  assert_config_failure
+  [[ "$stderr" == *"subfolder"* ]]
+}
+
+@test "treats a pair of quotes with nothing between them as a missing vault" {
+  create_checkout github.com/acme/widget
+  write_config 'vault=""'
+
+  resolve_in "$GHQ_ROOT/github.com/acme/widget"
+
+  assert_config_failure
+  [[ "$stderr" == *"vault is missing"* ]]
+}
+
+@test "keeps a single quote character as the value" {
+  create_checkout github.com/acme/widget
+  write_config "vault=$VAULT" "subfolder='"
+
+  resolve_in "$GHQ_ROOT/github.com/acme/widget"
+
+  [ "$status" -eq 0 ]
+  [ "$(output_value notes)" = "$VAULT/'/github.com/acme/widget" ]
+}
