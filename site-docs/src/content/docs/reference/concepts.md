@@ -63,7 +63,7 @@ The ghq root is the output of `ghq root`.
 - You can also restore a note by hand.
 - Restoring a note means removing the field.
 - You delete the marked notes yourself.
-- The README documents one command that deletes them.
+- The guide [Delete marked notes](/how-to/delete-marked-notes/) documents one command that deletes them.
 
 ## Version control
 
