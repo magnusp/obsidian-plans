@@ -170,6 +170,7 @@ Run it from a checkout, a worktree, or a directory inside a notes folder.
    Its front matter has no `marked-for-deletion` field.
    Front matter is the block between a first line `---` and the next line `---`.
    A file without front matter is open.
+   A file that has a first line `---` and no closing `---` has no front matter.
 4. Print to stdout, one entry per line, with tab characters between the fields.
    Print the inbox entries first and then the plan entries.
    Sort each group by file name.

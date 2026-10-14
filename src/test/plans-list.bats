@@ -140,6 +140,20 @@ NOTE
   [ "$output" = "inbox${TAB}2026-10-04-body" ]
 }
 
+@test "treats a note with an unclosed front matter block as having none" {
+  write_note plans/2026-10-10-unclosed.md <<'NOTE'
+---
+created: 2026-10-10
+branch: not-a-branch
+marked-for-deletion: 2026-10-11
+NOTE
+
+  list_in_repo
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "plan${TAB}2026-10-10-unclosed${TAB}" ]
+}
+
 @test "ignores a branch line in the body" {
   write_note plans/2026-10-10-body.md <<'NOTE'
 ---
