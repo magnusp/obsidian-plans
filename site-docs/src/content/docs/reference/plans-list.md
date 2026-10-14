@@ -33,11 +33,8 @@ You run `plans-list` from a checkout, a worktree, or a directory inside a notes 
 
 ## Front matter
 
-- Front matter is the block between a first line `---` and the next line `---`.
-- Each of the two delimiter lines is exactly `---`.
-  A line with a trailing space or a trailing carriage return is not a delimiter line.
+- The [front matter](/reference/concepts/#front-matter) rules decide where the front matter starts and ends.
 - A file without front matter is open.
-- A file that has a first line `---` and no closing `---` has no front matter.
 - A front matter line that starts with `marked-for-deletion:` marks the note.
   The line marks the note even when the value is empty.
 

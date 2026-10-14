@@ -572,6 +572,18 @@ write_marked_plan() {
   [[ "$stderr" == *"2026-01-01-body.md"* ]]
 }
 
+@test "does not warn about a plan whose front matter has no closing line" {
+  create_checkout "$REPO"
+  run_in_checkout feature/x
+  printf -- '---\ncreated: 2026-01-01\n\nbranch: feature/x\n' \
+    >"$NOTES_ROOT/$REPO/plans/2026-01-01-unclosed.md"
+
+  run_in_checkout --remove feature/x
+
+  [ "$status" -eq 0 ]
+  [ -z "$stderr" ]
+}
+
 @test "fails to remove an unknown branch" {
   create_checkout "$REPO"
 
