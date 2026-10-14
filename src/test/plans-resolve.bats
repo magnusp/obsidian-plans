@@ -410,6 +410,27 @@ obsidian_snapshot() {
   [[ "$stderr" == *"$VAULT/~"* ]]
 }
 
+@test "does not expand a tilde that a name follows" {
+  create_checkout github.com/acme/widget
+  write_config "vault=~vault"
+
+  resolve_in "$GHQ_ROOT/github.com/acme/widget"
+
+  [ "$status" -ne 0 ]
+  [[ "$stderr" == *"vault ~vault in "*" must be an absolute path"* ]]
+}
+
+@test "ignores unknown keys and lines without an equals sign" {
+  create_checkout github.com/acme/widget
+  write_config "color=blue" "vault=$VAULT" "just a line"
+
+  resolve_in "$GHQ_ROOT/github.com/acme/widget"
+
+  [ "$status" -eq 0 ]
+  [ "$(output_value vault)" = "$VAULT" ]
+  [ "$(output_value notes)" = "$NOTES_ROOT/github.com/acme/widget" ]
+}
+
 @test "uses a custom subfolder" {
   create_checkout github.com/acme/widget
   write_config "vault=$VAULT" "subfolder=repo-notes"

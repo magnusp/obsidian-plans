@@ -428,6 +428,18 @@ add_origin() {
   [ "$output" = "$first" ]
 }
 
+@test "creates the notes folder when it is missing" {
+  create_checkout "$REPO"
+
+  run_in_checkout feature/x
+
+  [ "$status" -eq 0 ]
+  [ -f "$NOTES_ROOT/$REPO/.plans-vault" ]
+  [ -d "$NOTES_ROOT/$REPO/inbox" ]
+  [ -d "$NOTES_ROOT/$REPO/plans" ]
+  [ -f "$NOTES_ROOT/$REPO/index.md" ]
+}
+
 @test "fails without arguments" {
   create_checkout "$REPO"
 
