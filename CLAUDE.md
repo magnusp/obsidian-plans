@@ -4,7 +4,7 @@ Bash scripts and two Claude skills that keep per-repository plans and inbox item
 
 ## Contract first
 
-`docs/design.md` is the single source of truth for behavior.
+`site-docs/src/content/docs/design.md` is the single source of truth for behavior.
 Edit the contract before you change a script or a skill.
 Report a gap or a conflict in the contract instead of choosing a behavior silently.
 
@@ -12,6 +12,7 @@ Report a gap or a conflict in the contract instead of choosing a behavior silent
 
 - `main` is protected. Open a pull request from a branch.
 - CI runs `mise run test` on each pull request. Run it locally first.
+- `site-docs/` is an Astro Starlight site. `mise run test` builds it and checks its links.
 - Write the failing `bats` test first, then the fix.
 - Pin tool versions in `mise.toml` and GitHub Actions to a commit SHA.
 

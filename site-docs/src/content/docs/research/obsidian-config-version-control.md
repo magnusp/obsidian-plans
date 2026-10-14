@@ -1,4 +1,6 @@
-# Version control for the Obsidian configuration folder
+---
+title: Version control for the Obsidian configuration folder
+---
 
 This note explains how to put the `.obsidian/` folder of a vault under Git.
 It covers which files to share, which files to ignore, known problems, and nested repositories.

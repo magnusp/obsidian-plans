@@ -1,4 +1,6 @@
-# Design contract
+---
+title: Design contract
+---
 
 This document is the shared contract for all scripts and skills.
 If you find a conflict or a gap, stop and report it.
@@ -70,6 +72,7 @@ The message tells you to run `install --vault <dir>`.
 - `src/plugin/`: the Claude Code plugin that shows inbox items and plans to you.
 - `src/skills/obsidian-inbox/SKILL.md` and `src/skills/obsidian-plans/SKILL.md`.
 - `src/test/`: the `bats` tests.
+- `site-docs/`: the Astro Starlight site that holds this contract.
 - `src/install`: the install script.
 - `mise.toml`, `README.md`, and `.gitignore` stay at the repository root.
 
