@@ -2,6 +2,8 @@
 bats = "1.13.0"
 claude = "2.1.299"
 jq = "1.7.1"
+node = "24.21.0"
+pnpm = "12.13.0"
 ripgrep = "14.1.1"
 
 [tasks.test-scripts]
@@ -10,5 +12,8 @@ run = "bats src/test"
 [tasks.test-plugin]
 run = "claude plugin test src/plugin"
 
+[tasks.test-site]
+run = "pnpm --dir site-docs install --frozen-lockfile && pnpm --dir site-docs build"
+
 [tasks.test]
-depends = ["test-scripts", "test-plugin"]
+depends = ["test-scripts", "test-plugin", "test-site"]

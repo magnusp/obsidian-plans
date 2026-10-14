@@ -1,1 +1,4 @@
 .claude/
+node_modules/
+site-docs/dist/
+site-docs/.astro/
