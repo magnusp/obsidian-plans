@@ -11,9 +11,9 @@ export default defineConfig({
       plugins: [starlightLinksValidator()],
       sidebar: [
         { label: 'Start here', slug: 'index' },
+        { label: 'How-to guides', items: [{ autogenerate: { directory: 'how-to' } }] },
         { label: 'Reference', items: [{ autogenerate: { directory: 'reference' } }] },
         { label: 'Explanation', items: [{ autogenerate: { directory: 'explanation' } }] },
-        { label: 'Research', items: [{ autogenerate: { directory: 'research' } }] },
       ],
     }),
   ],
