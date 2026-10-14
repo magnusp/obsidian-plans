@@ -38,5 +38,6 @@ Any other set of arguments fails with a usage message on stderr and a non-zero e
 7. With `--remove`, it runs `git worktree remove`.
    It fails if the directory for the branch holds no worktree for that branch.
    If a plan with `branch: <branch>` exists in the notes folder, it prints a warning on stderr.
+   The line counts only in the [front matter](/reference/concepts/#front-matter) of the plan.
    It skips a plan that has `marked-for-deletion`.
    It never deletes the plan or the notes folder.

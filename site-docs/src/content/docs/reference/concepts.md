@@ -38,6 +38,14 @@ The worktrees root is `<ghq root>/worktrees`.
 - The notes folder is `<notes root>/<host>/<owner>/.../<repo>`.
 - Each repository has one notes folder.
 
+## Front matter
+
+- Front matter is the block between a first line `---` and the next line `---`.
+- Each of the two delimiter lines is exactly `---`.
+  A line with a trailing space or a trailing carriage return is not a delimiter line.
+- A file that has a first line `---` and no closing `---` has no front matter.
+- Scripts read front matter, and no other part of a note, for the fields that the reference pages name.
+
 ## Ghq root
 
 The ghq root is the output of `ghq root`.

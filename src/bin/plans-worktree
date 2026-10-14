@@ -131,10 +131,10 @@ plans_for_branch() {
     [[ -f $plan ]] || continue
     BRANCH_LINE="branch: $branch" awk '
       NR == 1 && $0 != "---" { exit 1 }
-      NR > 1 && $0 == "---" { exit }
+      NR > 1 && $0 == "---" { closed = 1; exit }
       $0 == ENVIRON["BRANCH_LINE"] { found = 1 }
       index($0, "marked-for-deletion:") == 1 { marked = 1 }
-      END { exit !(found && !marked) }
+      END { exit !(closed && found && !marked) }
     ' "$plan" && echo "$plan"
   done
 }
