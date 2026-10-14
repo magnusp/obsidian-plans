@@ -11,7 +11,8 @@ export default defineConfig({
       plugins: [starlightLinksValidator()],
       sidebar: [
         { label: 'Start here', slug: 'index' },
-        { label: 'Design contract', slug: 'design' },
+        { label: 'Reference', items: [{ autogenerate: { directory: 'reference' } }] },
+        { label: 'Explanation', items: [{ autogenerate: { directory: 'explanation' } }] },
         { label: 'Research', items: [{ autogenerate: { directory: 'research' } }] },
       ],
     }),

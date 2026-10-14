@@ -194,6 +194,112 @@ NOTE
   [ "${lines[3]}" = "plan${TAB}2026-10-02-b${TAB}" ]
 }
 
+@test "sorts by the file name with its extension in byte order" {
+  write_note inbox/a.md <<<"a"
+  write_note inbox/a-b.md <<<"a-b"
+  write_note inbox/B.md <<<"B"
+
+  list_in_repo
+
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "inbox${TAB}B" ]
+  [ "${lines[1]}" = "inbox${TAB}a-b" ]
+  [ "${lines[2]}" = "inbox${TAB}a" ]
+}
+
+@test "skips a markdown file whose name starts with a dot" {
+  write_note inbox/.hidden.md <<<"hidden"
+  write_note inbox/2026-10-01-seen.md <<<"seen"
+
+  list_in_repo
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "inbox${TAB}2026-10-01-seen" ]
+}
+
+@test "has no front matter when the first line is not exactly three dashes" {
+  printf -- '--- \nmarked-for-deletion: 2026-10-05\n---\n' | write_note inbox/2026-10-01-space.md
+  printf -- '---\r\nmarked-for-deletion: 2026-10-05\r\n---\r\n' | write_note inbox/2026-10-02-crlf.md
+
+  list_in_repo
+
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "inbox${TAB}2026-10-01-space" ]
+  [ "${lines[1]}" = "inbox${TAB}2026-10-02-crlf" ]
+}
+
+@test "has no front matter when the closing line is not exactly three dashes" {
+  printf -- '---\nmarked-for-deletion: 2026-10-05\n--- \n' | write_note inbox/2026-10-01-space.md
+  printf -- '---\nbranch: feature/x\n---\r\n' | write_note plans/2026-10-02-crlf.md
+
+  list_in_repo
+
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "inbox${TAB}2026-10-01-space" ]
+  [ "${lines[1]}" = "plan${TAB}2026-10-02-crlf${TAB}" ]
+}
+
+@test "takes the branch from the first branch line and trims it" {
+  write_note plans/2026-10-10-twice.md <<'NOTE'
+---
+branch:   first
+branch: second
+---
+NOTE
+
+  list_in_repo
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "plan${TAB}2026-10-10-twice${TAB}first" ]
+}
+
+@test "ignores a branch line without a space after the colon or with a leading space" {
+  write_note plans/2026-10-10-no-space.md <<'NOTE'
+---
+branch:feature/x
+---
+NOTE
+  write_note plans/2026-10-11-indented.md <<'NOTE'
+---
+ branch: feature/x
+---
+NOTE
+
+  list_in_repo
+
+  [ "$status" -eq 0 ]
+  [ "${lines[0]}" = "plan${TAB}2026-10-10-no-space${TAB}" ]
+  [ "${lines[1]}" = "plan${TAB}2026-10-11-indented${TAB}" ]
+}
+
+@test "skips a note whose marked-for-deletion field is empty" {
+  write_note inbox/2026-10-01-empty-mark.md <<'NOTE'
+---
+marked-for-deletion:
+---
+NOTE
+  write_note inbox/2026-10-02-kept.md <<<"kept"
+
+  list_in_repo
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "inbox${TAB}2026-10-02-kept" ]
+}
+
+@test "passes a warning from plans-resolve to stderr and exits 0" {
+  local gone="$NOTES_ROOT/github.com/acme/gone"
+  mkdir -p "$gone/inbox"
+  touch "$gone/.plans-vault"
+  printf 'left\n' >"$gone/inbox/2026-10-01-left.md"
+
+  cd "$gone"
+  run --separate-stderr "$PLANS_LIST"
+
+  [ "$status" -eq 0 ]
+  [ "$output" = "inbox${TAB}2026-10-01-left" ]
+  [ "$stderr" = "plans-resolve: warning: checkout $GHQ_ROOT/github.com/acme/gone does not exist" ]
+}
+
 @test "lists the notes of the repository from a worktree" {
   git -C "$GHQ_ROOT/$REPO" -c user.name=T -c user.email=t@example.com commit -q --allow-empty -m initial
   local worktree="$GHQ_ROOT/worktrees/$REPO/feature-x"
